@@ -40,6 +40,28 @@ class CoinDash extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
+    this.paused = false;
+    this.pauseOverlay = this.add.container(c.width / 2, c.height / 2, [
+      this.add.rectangle(0, 0, 360, 110, 0x0a1120, 0.95),
+      this.add.text(0, 0, 'Paused\nPress P or Esc to resume',
+        { font: '22px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }).setOrigin(0.5)
+    ]).setDepth(10).setVisible(false);
+    this.input.keyboard.on('keydown-P', () => this.togglePause());
+    this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+  }
+
+  togglePause() {
+    if (this.finished) return;
+    this.paused = !this.paused;
+    if (this.paused) {
+      this.pausedAt = this.time.now;
+      this.physics.pause();
+    } else {
+      // Push the deadline back so paused time does not count against the round.
+      this.deadline += this.time.now - this.pausedAt;
+      this.physics.resume();
+    }
+    this.pauseOverlay.setVisible(this.paused);
   }
 
   placeCoin() {
@@ -67,7 +89,9 @@ class CoinDash extends Phaser.Scene {
 
   spawnEnemies() {
     const e = COIN_DASH.enemies;
-    const now = this.time.now;
+    // Enemy timers run on their own clock, which stops while the game is paused.
+    this.enemyClock = 0;
+    const now = 0;
     const add = (kind, shape) => {
       this.drones.add(shape);
       shape.kind = kind;
@@ -99,8 +123,9 @@ class CoinDash extends Phaser.Scene {
     }
   }
 
-  updateEnemies(time, delta) {
+  updateEnemies(delta) {
     const e = COIN_DASH.enemies;
+    const time = (this.enemyClock += delta);
     const dt = delta / 1000;
     this.aimLines.clear();
     this.drones.getChildren().forEach(enemy => {
@@ -174,14 +199,14 @@ class CoinDash extends Phaser.Scene {
   }
 
   update(time, delta) {
-    if (this.finished) return;
+    if (this.finished || this.paused) return;
     const dx = Number(this.cursors.right.isDown || this.keys.D.isDown)
       - Number(this.cursors.left.isDown || this.keys.A.isDown);
     const dy = Number(this.cursors.down.isDown || this.keys.S.isDown)
       - Number(this.cursors.up.isDown || this.keys.W.isDown);
     const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(COIN_DASH.playerSpeed);
     this.player.body.setVelocity(direction.x, direction.y);
-    this.updateEnemies(time, delta);
+    this.updateEnemies(delta);
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
     this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
     if (seconds === 0) this.finish('Time is up!');
