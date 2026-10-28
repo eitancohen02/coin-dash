@@ -2,14 +2,12 @@
 window.COIN_DASH = {
   width: 800,
   height: 500,
-  roundSeconds: 45,
   playerSpeed: 240,
   droneSpeed: 105,
   droneCount: 3,
   sfxEnabled: true, // retro 8-bit sound effects (sfx-retro.js)
   sfxVolume: 0.25, // master volume, 0..1
   sfxBitDepth: 3, // lower = crunchier bit-crush
-  sfxTickSeconds: 5, // countdown tick during the last N seconds (0 = off)
   // Extra enemy kinds. They visit (one at a time at first): fade in, stay a while, flicker, then leave.
   enemies: {
     spawnMinDistance: 200,
@@ -25,12 +23,16 @@ window.COIN_DASH = {
     // Circles the coin to guard it.
     orbiter: { radius: 62, angularSpeed: 2.4, maxSpeed: 260, color: 0xff6b9d }
   },
-  // The round gets harder: visit settings ease from `enemies.visits` to these values by the final second,
+  // The game gets harder: visit settings ease from `enemies.visits` to these values over `rampSeconds`,
   // and an extra drone joins at each listed second.
   difficulty: {
+    rampSeconds: 90,
     end: { everyMs: 3500, stayMs: 10000, maxAtOnce: 3 },
-    extraDronesAtSeconds: [15, 30]
+    extraDronesAtSeconds: [15, 30, 50, 75]
   },
+  // No time limit: play until caught. Surviving earns points steadily, and coins add a boost
+  // that multiplies (up to maxCombo) when the next coin is grabbed within comboWindowMs.
+  scoring: { pointsPerSecond: 10, coinPoints: 100, comboWindowMs: 4000, maxCombo: 5 },
   colors: { background: 0x101c31, player: 0x71e8ce, coin: 0xffd166, drone: 0xff657a }
 };
 // Guns: pick up a gun to get a few bullets, then hold the fire key to shoot in the direction you last moved.
