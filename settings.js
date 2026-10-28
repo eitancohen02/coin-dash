@@ -35,3 +35,10 @@ window.COIN_DASH = {
 };
 // Lo-fi background music (music-lofi.js).
 window.COIN_DASH.lofiMusic = { volume: 0.45, bpm: 78, swing: 0.62, muted: false };
+// Cozy pastel graphics (graphics-cozy.js). Set enabled: false to get the plain shapes back.
+window.COIN_DASH.cozy = {
+  enabled: true,
+  palette: { cream: 0xfbf3e4, ink: 0x6b4f45, meadow: 0xcfe2bd, accent: 0xf2a98a, player: 0x8fd3c1,
+    coin: 0xffd36e, drone: 0xf4958c, chaser: 0xffb877, dasher: 0xc7aef0, blinker: 0xa9d8f2, orbiter: 0xffadc8 },
+  squash: 0.14 // how far the blob stretches while moving
+};
