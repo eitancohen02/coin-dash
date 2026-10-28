@@ -11,7 +11,7 @@ class CoinDash extends Phaser.Scene {
     this.lastCoinAt = -Infinity;
     this.finished = false;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
-    this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
+    this.background = this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
       c.colors.background, 1, 0x24334b, 0.45);
     this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: '#ffffff' });
     this.player = this.add.rectangle(c.width / 2, c.height / 2, 24, 24, c.colors.player);
@@ -60,6 +60,7 @@ class CoinDash extends Phaser.Scene {
     window.LofiMusic.start(this.sound.context);
     this.input.keyboard.on('keydown', () => window.LofiMusic.resume());
     this.input.keyboard.on('keydown-M', () => window.LofiMusic.toggleMute());
+    window.GraphicsCozy?.create(this);
   }
 
   setupGuns() {
@@ -392,12 +393,13 @@ class CoinDash extends Phaser.Scene {
       try { localStorage.setItem('coinDash.bestScore', String(this.score)); } catch { /* not saved */ }
     }
     const seconds = Math.floor(this.enemyClock / 1000);
-    this.add.rectangle(c.width / 2, c.height / 2, 500, 200, 0x0a1120, 0.95).setDepth(10);
-    this.add.text(c.width / 2, c.height / 2,
+    this.finishPanel = this.add.rectangle(c.width / 2, c.height / 2, 500, 200, 0x0a1120, 0.95).setDepth(10);
+    this.finishText = this.add.text(c.width / 2, c.height / 2,
       `${reason}\nScore: ${this.score}${this.score > best ? '  NEW BEST!' : `  (best ${best})`}`
       + `\n${this.coins} coins · survived ${seconds}s\nPress R to try again`,
       { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5).setDepth(10);
+    window.GraphicsCozy?.finish(this, reason);
   }
 }
 window.coinDashGame = new Phaser.Game({
