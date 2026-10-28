@@ -12,7 +12,12 @@ Tuning lives in `settings.js`, behaviour lives in `game.js`, and `vendor/` is th
 ## Running several agents at once
 
 - One agent per git worktree and branch. Never share a working folder with another agent.
-  Create one with: `git worktree add ../coin-dash-<feature> -b feature/<feature> main`.
+- If you are started in the main checkout (`coin-dash`, on `main`) and asked to build a feature, first move into your own
+  worktree with the `EnterWorktree` tool, before you read or edit anything. Then work on a `feature/<feature>` branch.
+  Plain `cd` is not enough, because the shell can reset to the starting folder.
+  Without that tool, run `git worktree add ../coin-dash-<feature> -b feature/<feature> main` and use absolute paths.
+- The main checkout belongs to the lead agent, which merges. Feature work never happens there.
+- When you delegate to subagents, give each one an isolated worktree of its own.
 - Work, commit and push only on your own branch. Do not edit, commit to, rebase or delete another agent's worktree or branch.
 - Do not push to `main` unless you were explicitly given the job of merging.
   The merger brings a branch up to date with the latest `main`, resolves any conflicts, checks the game still loads and plays, and then merges and pushes.
