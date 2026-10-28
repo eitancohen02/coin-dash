@@ -10,7 +10,7 @@ window.COIN_DASH = {
   sfxVolume: 0.25, // master volume, 0..1
   sfxBitDepth: 3, // lower = crunchier bit-crush
   sfxTickSeconds: 5, // countdown tick during the last N seconds (0 = off)
-  // Extra enemy kinds. They visit one at a time: fade in, stay a while, flicker, then leave.
+  // Extra enemy kinds. They visit (one at a time at first): fade in, stay a while, flicker, then leave.
   enemies: {
     spawnMinDistance: 200,
     // Remove a kind from `kinds` to switch it off.
@@ -24,6 +24,12 @@ window.COIN_DASH = {
     blinker: { speed: 45, blinkEveryMs: 3200, warnMs: 900, color: 0x48dbfb },
     // Circles the coin to guard it.
     orbiter: { radius: 62, angularSpeed: 2.4, maxSpeed: 260, color: 0xff6b9d }
+  },
+  // The round gets harder: visit settings ease from `enemies.visits` to these values by the final second,
+  // and an extra drone joins at each listed second.
+  difficulty: {
+    end: { everyMs: 3500, stayMs: 10000, maxAtOnce: 3 },
+    extraDronesAtSeconds: [15, 30]
   },
   colors: { background: 0x101c31, player: 0x71e8ce, coin: 0xffd166, drone: 0xff657a }
 };
