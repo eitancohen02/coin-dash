@@ -5,8 +5,11 @@ class CoinDash extends Phaser.Scene {
   create() {
     const c = COIN_DASH;
     this.score = 0;
+    this.coins = 0;
+    this.coinPoints = 0;
+    this.combo = 0;
+    this.lastCoinAt = -Infinity;
     this.finished = false;
-    this.deadline = this.time.now + c.roundSeconds * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
     this.background = this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
       c.colors.background, 1, 0x24334b, 0.45);
@@ -32,7 +35,7 @@ class CoinDash extends Phaser.Scene {
     this.setupGuns();
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
-      this.score++;
+      this.collectCoin();
       window.SfxRetro?.coin();
       this.placeCoin();
     });
@@ -141,15 +144,22 @@ class CoinDash extends Phaser.Scene {
   togglePause() {
     if (this.finished) return;
     this.paused = !this.paused;
-    if (this.paused) {
-      this.pausedAt = this.time.now;
-      this.physics.pause();
-    } else {
-      // Push the deadline back so paused time does not count against the round.
-      this.deadline += this.time.now - this.pausedAt;
-      this.physics.resume();
-    }
+    if (this.paused) this.physics.pause();
+    else this.physics.resume();
     this.pauseOverlay.setVisible(this.paused);
+  }
+
+  // Coins are the score boost: grabbing the next one quickly raises a combo multiplier.
+  collectCoin() {
+    const s = COIN_DASH.scoring;
+    this.combo = this.enemyClock - this.lastCoinAt <= s.comboWindowMs ? Math.min(s.maxCombo, this.combo + 1) : 1;
+    this.lastCoinAt = this.enemyClock;
+    const points = s.coinPoints * this.combo;
+    this.coins++;
+    this.coinPoints += points;
+    const popup = this.add.text(this.coin.x, this.coin.y - 12, `+${points}${this.combo > 1 ? ` x${this.combo}` : ''}`,
+      { font: 'bold 16px monospace', color: '#ffd166' }).setOrigin(0.5).setDepth(5);
+    this.tweens.add({ targets: popup, y: popup.y - 36, alpha: 0, duration: 800, onComplete: () => popup.destroy() });
   }
 
   placeCoin() {
@@ -182,9 +192,9 @@ class CoinDash extends Phaser.Scene {
     this.extraDrones = 0;
   }
 
-  // A visit setting eased from its starting value to its value at the end of the round.
+  // A visit setting eased from its starting value to its hardest value over `difficulty.rampSeconds`.
   rampVisit(key) {
-    const progress = Math.min(1, this.enemyClock / (COIN_DASH.roundSeconds * 1000));
+    const progress = Math.min(1, this.enemyClock / (COIN_DASH.difficulty.rampSeconds * 1000));
     return Phaser.Math.Linear(COIN_DASH.enemies.visits[key], COIN_DASH.difficulty.end[key], progress);
   }
 
@@ -359,11 +369,17 @@ class CoinDash extends Phaser.Scene {
     if (dx || dy) this.facing.set(dx, dy).normalize();
     this.updateEnemies(delta);
     this.updateGuns();
-    const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
-    this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
-    if (seconds !== this.lastSecond && seconds > 0 && seconds <= (COIN_DASH.sfxTickSeconds ?? 0)) window.SfxRetro?.tick(seconds);
-    this.lastSecond = seconds;
-    if (seconds === 0) { window.SfxRetro?.timeUp(); this.finish('Time is up!'); }
+    // Surviving earns points steadily; coins add their boost on top.
+    const seconds = Math.floor(this.enemyClock / 1000);
+    this.score = Math.floor(this.enemyClock / 1000 * COIN_DASH.scoring.pointsPerSecond) + this.coinPoints;
+    const comboLive = this.combo > 1 && this.enemyClock - this.lastCoinAt <= COIN_DASH.scoring.comboWindowMs;
+    this.hud.setText(`Score: ${this.score}   Coins: ${this.coins}${comboLive ? ` x${this.combo}` : ''}`
+      + `   Time: ${seconds}s   Best: ${Math.max(this.bestScore(), this.score)}`);
+  }
+
+  // The best score is kept in this browser; storage can be unavailable, so failures are ignored.
+  bestScore() {
+    try { return Number(localStorage.getItem('coinDash.bestScore')) || 0; } catch { return 0; }
   }
 
   finish(reason) {
@@ -372,11 +388,17 @@ class CoinDash extends Phaser.Scene {
     this.physics.pause();
     window.LofiMusic.duck();
     const c = COIN_DASH;
-    this.finishPanel = this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
+    const best = this.bestScore();
+    if (this.score > best) {
+      try { localStorage.setItem('coinDash.bestScore', String(this.score)); } catch { /* not saved */ }
+    }
+    const seconds = Math.floor(this.enemyClock / 1000);
+    this.finishPanel = this.add.rectangle(c.width / 2, c.height / 2, 500, 200, 0x0a1120, 0.95).setDepth(10);
     this.finishText = this.add.text(c.width / 2, c.height / 2,
-      `${reason}\n${this.score} coins collected\nPress R to try again`,
+      `${reason}\nScore: ${this.score}${this.score > best ? '  NEW BEST!' : `  (best ${best})`}`
+      + `\n${this.coins} coins · survived ${seconds}s\nPress R to try again`,
       { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
-    ).setOrigin(0.5);
+    ).setOrigin(0.5).setDepth(10);
     window.GraphicsCozy?.finish(this, reason);
   }
 }

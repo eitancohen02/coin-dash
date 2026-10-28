@@ -407,7 +407,7 @@
     const title = scene.add.text(W / 2, 18, 'coin dash', textStyle(p, 17, { color: hexStr(dark(p.accent, 0.12)) }))
       .setOrigin(0.5);
     hud.add([left.g, coinIcon, coins, right.g, clock, timeText, title]);
-    st.hud = { coins, timeText, coinIcon, right, clock, lastCoins: -1, warn: false };
+    st.hud = { coins, timeText, coinIcon, right, clock, title, lastCoins: -1 };
     // Guns keep their own ammo text in the top-right corner; show it in a pill beside the timer instead.
     if (scene.ammoHud) {
       scene.ammoHud.setVisible(false);
@@ -421,19 +421,17 @@
 
   function updateHud(scene, st, p, time) {
     const m = /Coins:\s*(\d+).*Time:\s*(\d+)s/.exec(scene.hud.text || '');
-    const coins = m ? +m[1] : scene.score;
-    const secs = m ? +m[2] : COIN_DASH.roundSeconds;
+    const coins = m ? +m[1] : scene.coins;
+    const secs = m ? +m[2] : 0;
     const h = st.hud;
     h.coins.setText(String(coins));
+    h.title.setText(`score ${scene.score} · best ${Math.max(scene.bestScore(), scene.score)}`);
     h.timeText.setText(secs + 's');
     if (h.ammo) h.ammo.setText('ammo ' + scene.ammo);
     if (coins !== h.lastCoins && h.lastCoins >= 0) {
       scene.tweens.add({ targets: h.coinIcon, scale: { from: 0.62, to: 0.42 }, duration: 260, ease: 'Back.easeOut' });
     }
     h.lastCoins = coins;
-    const warn = secs <= 5 && !scene.finished;
-    if (warn !== h.warn) { h.right.draw(118, warn ? light(p.accent, 0.35) : light(p.cream, 0.5)); h.warn = warn; }
-    h.timeText.setScale(warn ? 1 + 0.08 * Math.abs(Math.sin(time / 160)) : 1);
   }
 
   function restylePause(scene, p) {
@@ -570,13 +568,13 @@
   function syncCoin(scene, st, p, time) {
     const f = st.coin;
     const x = scene.coin.x, y = scene.coin.y;
-    if (scene.score !== st.score) {
+    if (scene.coins !== st.coins) {
       // The coin was collected and has already jumped: celebrate where it was.
       pop(scene, f.lastX, f.lastY, p);
       st.player.sxv = (st.player.sxv || 0) + 5;
       st.player.syv = (st.player.syv || 0) - 5;
       f.appear = time;
-      st.score = scene.score;
+      st.coins = scene.coins;
     }
     f.lastX = x; f.lastY = y;
     const grow = f.appear ? Phaser.Math.Easing.Back.Out(Math.min(1, (time - f.appear) / 320)) : 1;
@@ -673,7 +671,7 @@
       if (scene.background) scene.background.setVisible(false);
       scene.add.image(0, 0, 'cozy-bg').setOrigin(0).setScale(1 / R).setDepth(-10);
       scene.hud.setVisible(false);
-      const st = scene.cozy = { score: scene.score };
+      const st = scene.cozy = { coins: scene.coins };
       makeHud(scene, st, p);
       makeFollowers(scene, st);
       restylePause(scene, p);
@@ -700,7 +698,7 @@
       if (caught) scene.cameras.main.shake(180, 0.006);
       const W = COIN_DASH.width, H = COIN_DASH.height;
       scene.add.rectangle(W / 2, H / 2, W, H, p.cream, 0.4).setDepth(19);
-      const box = panel(scene, 460, 164, p).setPosition(W / 2, H / 2).setDepth(20);
+      const box = panel(scene, 480, 196, p).setPosition(W / 2, H / 2).setDepth(20);
       if (scene.finishPanel) scene.finishPanel.setVisible(false);
       if (scene.finishText) scene.finishText.setStyle(textStyle(p, 22, { lineSpacing: 10 })).setDepth(21);
       box.setScale(0.6);
