@@ -105,6 +105,11 @@
       tone('square', 220, 880, 0, 0.18, 0.4);
       tone('square', 880, 880, 0.2, 0.08, 0.35);
     },
+    // Gun pickup: a quick rising triangle "cha-chick".
+    pickup() {
+      tone('triangle', 523, 523, 0, 0.05, 0.5);
+      tone('square', 784, 1046, 0.06, 0.1, 0.35);
+    },
     // Gun shot: a very short falling square "pew".
     shoot() {
       tone('square', 1400, 500, 0, 0.07, 0.25);

@@ -66,6 +66,16 @@ class CoinDash extends Phaser.Scene {
     this.nextShotAt = 0;
     if (!g?.enabled) return;
     this.fireKey = this.input.keyboard.addKey(g.fireKey);
+    this.ammo = g.startAmmo;
+    this.ammoHud = this.add.text(COIN_DASH.width - 18, 12, '', { font: '18px monospace', color: '#ffffff' })
+      .setOrigin(1, 0);
+    // The gun pickup: a small barrel shape that waits off-field until it is due.
+    this.gunPickup = this.add.rectangle(0, 0, 22, 10, g.pickup.color).setStrokeStyle(2, 0xffffff)
+      .setVisible(false);
+    this.physics.add.existing(this.gunPickup);
+    this.gunPickup.body.enable = false;
+    this.nextPickupAt = g.pickup.firstAfterMs;
+    this.physics.add.overlap(this.player, this.gunPickup, () => this.collectGun());
     // Enemies that are fading in or teleporting are harmless, and bullets pass through them too.
     this.physics.add.overlap(this.bullets, this.drones,
       (bullet, enemy) => this.hitEnemy(bullet, enemy),
@@ -75,8 +85,17 @@ class CoinDash extends Phaser.Scene {
   updateGuns() {
     const g = COIN_DASH.guns;
     if (!g?.enabled) return;
-    if (this.fireKey.isDown && this.enemyClock >= this.nextShotAt) {
+    if (!this.gunPickup.visible && this.enemyClock >= this.nextPickupAt) {
+      const p = this.enemySpawnPoint();
+      this.gunPickup.setPosition(p.x, p.y).setVisible(true);
+      this.gunPickup.body.enable = true;
+      this.gunPickup.body.reset(p.x, p.y);
+    }
+    if (this.gunPickup.visible) this.gunPickup.setScale(1 + 0.12 * Math.sin(this.enemyClock / 120));
+    this.ammoHud.setText(`Ammo: ${this.ammo}`);
+    if (this.fireKey.isDown && this.ammo > 0 && this.enemyClock >= this.nextShotAt) {
       this.nextShotAt = this.enemyClock + g.cooldownMs;
+      this.ammo--;
       const bullet = this.add.circle(this.player.x, this.player.y, g.bulletRadius, g.color);
       this.bullets.add(bullet);
       bullet.body.setCircle(g.bulletRadius);
@@ -87,6 +106,16 @@ class CoinDash extends Phaser.Scene {
     this.bullets.getChildren().slice().forEach(bullet => {
       if (!bounds.contains(bullet.x, bullet.y)) bullet.destroy();
     });
+  }
+
+  collectGun() {
+    const p = COIN_DASH.guns.pickup;
+    if (this.finished || !this.gunPickup.visible) return;
+    this.ammo = Math.min(p.maxAmmo, this.ammo + p.ammo);
+    this.gunPickup.setVisible(false);
+    this.gunPickup.body.enable = false;
+    this.nextPickupAt = this.enemyClock + p.respawnMs;
+    window.SfxRetro?.pickup?.();
   }
 
   hitEnemy(bullet, enemy) {
