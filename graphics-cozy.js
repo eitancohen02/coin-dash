@@ -486,21 +486,30 @@
     // Enemies.
     scene.aimLines.setVisible(false);
     st.aim = scene.add.graphics().setDepth(1.6);
-    st.enemies = scene.drones.getChildren().map((shape, i) => {
-      const spec = SPEC[shape.kind] || SPEC.drone;
-      shape.setVisible(false);
-      const img = scene.add.image(0, 0, spec.key).setOrigin(0.5, spec.oy).setScale(1 / R);
-      const f = {
-        shape, spec, img, phase: i * 1.7,
-        c: scene.add.container(shape.x, shape.y, [img]).setDepth(3),
-        shadow: shadow(spec.shadowW)
-      };
-      if (shape.marker) {
-        shape.marker.setAlpha(0);
-        f.marker = scene.add.image(0, 0, 'cozy-marker').setScale(1 / R).setDepth(1.5).setVisible(false);
-      }
-      return f;
-    });
+    st.enemies = [];
+    st.followed = 0;
+    scene.drones.getChildren().forEach(shape => followEnemy(scene, st, shape));
+  }
+
+  // Enemies come and go during the round (visitors, extra drones), so each one gets a follower when first seen.
+  function followEnemy(scene, st, shape) {
+    const spec = SPEC[shape.kind] || SPEC.drone;
+    shape.setVisible(false);
+    // The game flickers leaving enemies with setVisible; keep the plain shape hidden and pass that on to the sprite.
+    shape.cozyShown = true;
+    shape.setVisible = v => { shape.cozyShown = v; return shape; };
+    const img = scene.add.image(0, 0, spec.key).setOrigin(0.5, spec.oy).setScale(1 / R);
+    const f = {
+      shape, spec, img, phase: st.followed++ * 1.7,
+      c: scene.add.container(shape.x, shape.y, [img]).setDepth(3),
+      shadow: scene.add.image(0, 0, 'cozy-shadow').setScale(spec.shadowW / R, 1 / R).setDepth(1)
+    };
+    if (shape.marker) {
+      shape.marker.setAlpha(0);
+      f.marker = scene.add.image(0, 0, 'cozy-marker').setScale(1 / R).setDepth(1.5).setVisible(false);
+    }
+    shape.cozy = f;
+    st.enemies.push(f);
   }
 
   function spring(st, axis, target, dt) {
@@ -571,6 +580,14 @@
   function syncEnemies(scene, st, time, dt) {
     const e = COIN_DASH.enemies;
     st.aim.clear();
+    scene.drones.getChildren().forEach(shape => { if (!shape.cozy) followEnemy(scene, st, shape); });
+    st.enemies = st.enemies.filter(f => {
+      if (f.shape.active) return true;
+      f.c.destroy();
+      f.shadow.destroy();
+      if (f.marker) f.marker.destroy();
+      return false;
+    });
     st.enemies.forEach(f => {
       const s = f.shape;
       const v = s.body.velocity;
@@ -616,8 +633,8 @@
         oy = Math.sin(t * 5) * 1.5;
         sy = 1 + 0.06 * Math.sin(t * 30);
       }
-      f.c.setPosition(s.x + ox, s.y + oy).setRotation(rot).setScale(sx, sy).setAlpha(s.alpha);
-      f.shadow.setPosition(s.x, s.y + f.spec.shadowY).setAlpha(s.alpha)
+      f.c.setPosition(s.x + ox, s.y + oy).setRotation(rot).setScale(sx, sy).setAlpha(s.alpha).setVisible(s.cozyShown);
+      f.shadow.setPosition(s.x, s.y + f.spec.shadowY).setAlpha(s.alpha).setVisible(s.cozyShown)
         .setScale(f.spec.shadowW * (1 - oy * 0.03) / R, 1 / R);
     });
   }
