@@ -52,6 +52,10 @@ class CoinDash extends Phaser.Scene {
     ]).setDepth(10).setVisible(false);
     this.input.keyboard.on('keydown-P', () => this.togglePause());
     this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+    // Lo-fi music: one shared instance, so restarts never stack copies.
+    window.LofiMusic.start(this.sound.context);
+    this.input.keyboard.on('keydown', () => window.LofiMusic.resume());
+    this.input.keyboard.on('keydown-M', () => window.LofiMusic.toggleMute());
   }
 
   togglePause() {
@@ -222,6 +226,7 @@ class CoinDash extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     this.physics.pause();
+    window.LofiMusic.duck();
     const c = COIN_DASH;
     this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
     this.add.text(c.width / 2, c.height / 2,
