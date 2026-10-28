@@ -32,14 +32,18 @@ class CoinDash extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
       this.score++;
+      window.SfxRetro?.coin();
       this.placeCoin();
     });
     this.physics.add.overlap(this.player, this.drones,
-      (player, enemy) => this.finish(`A ${enemy.kind} caught you!`),
+      (player, enemy) => {
+        if (!this.finished) window.SfxRetro?.caught();
+        this.finish(`A ${enemy.kind} caught you!`);
+      },
       (player, enemy) => !enemy.harmless);
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
-    this.input.keyboard.on('keydown-R', () => this.scene.restart());
+    this.input.keyboard.on('keydown-R', () => { window.SfxRetro?.restart(); this.scene.restart(); });
     this.paused = false;
     this.pauseOverlay = this.add.container(c.width / 2, c.height / 2, [
       this.add.rectangle(0, 0, 360, 110, 0x0a1120, 0.95),
@@ -209,7 +213,9 @@ class CoinDash extends Phaser.Scene {
     this.updateEnemies(delta);
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
     this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
-    if (seconds === 0) this.finish('Time is up!');
+    if (seconds !== this.lastSecond && seconds > 0 && seconds <= (COIN_DASH.sfxTickSeconds ?? 0)) window.SfxRetro?.tick(seconds);
+    this.lastSecond = seconds;
+    if (seconds === 0) { window.SfxRetro?.timeUp(); this.finish('Time is up!'); }
   }
 
   finish(reason) {

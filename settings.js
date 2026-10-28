@@ -6,6 +6,10 @@ window.COIN_DASH = {
   playerSpeed: 240,
   droneSpeed: 105,
   droneCount: 3,
+  sfxEnabled: true, // retro 8-bit sound effects (sfx-retro.js)
+  sfxVolume: 0.25, // master volume, 0..1
+  sfxBitDepth: 3, // lower = crunchier bit-crush
+  sfxTickSeconds: 5, // countdown tick during the last N seconds (0 = off)
   // Extra enemy kinds. Set a count to 0 to switch a kind off.
   enemies: {
     spawnMinDistance: 200,
