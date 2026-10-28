@@ -96,38 +96,70 @@ class CoinDash extends Phaser.Scene {
   }
 
   spawnEnemies() {
-    const e = COIN_DASH.enemies;
     // Enemy timers run on their own clock, which stops while the game is paused.
     this.enemyClock = 0;
-    const now = 0;
-    const add = (kind, shape) => {
-      this.drones.add(shape);
-      shape.kind = kind;
-      shape.body.setCollideWorldBounds(true);
-      return shape;
-    };
-    for (let i = 0; i < e.chaser.count; i++) {
-      const p = this.enemySpawnPoint();
-      add('chaser', this.add.triangle(p.x, p.y, 0, 24, 12, 0, 24, 24, e.chaser.color));
+    this.nextVisitAt = COIN_DASH.enemies.visits.firstAfterMs;
+  }
+
+  // The special enemies only visit: one appears, stays a few seconds, then leaves.
+  spawnVisitor(kind) {
+    const e = COIN_DASH.enemies;
+    const now = this.enemyClock;
+    const p = this.enemySpawnPoint();
+    let shape;
+    if (kind === 'chaser') {
+      shape = this.add.triangle(p.x, p.y, 0, 24, 12, 0, 24, 24, e.chaser.color);
+    } else if (kind === 'dasher') {
+      shape = this.add.star(p.x, p.y, 4, 6, 15, e.dasher.color);
+      shape.state = 'rest';
+      shape.nextAt = now + e.visits.arriveMs + e.dasher.restMs / 2;
+    } else if (kind === 'blinker') {
+      shape = this.add.star(p.x, p.y, 6, 8, 14, e.blinker.color);
+      shape.nextAt = now + e.blinker.blinkEveryMs;
+      shape.marker = this.add.circle(0, 0, 16).setStrokeStyle(2, e.blinker.color).setVisible(false);
+    } else {
+      shape = this.add.circle(p.x, p.y, 10, e.orbiter.color);
     }
-    for (let i = 0; i < e.dasher.count; i++) {
-      const p = this.enemySpawnPoint();
-      const dasher = add('dasher', this.add.star(p.x, p.y, 4, 6, 15, e.dasher.color));
-      dasher.state = 'rest';
-      dasher.nextAt = now + e.dasher.restMs * (1 + i * 0.5);
+    this.drones.add(shape);
+    shape.kind = kind;
+    shape.visitor = true;
+    shape.arrived = false;
+    shape.harmless = true;
+    shape.bornAt = now;
+    shape.leavesAt = now + e.visits.stayMs;
+    shape.body.setCollideWorldBounds(true);
+    if (kind === 'blinker') {
+      shape.body.setBounce(1, 1);
+      this.physics.velocityFromAngle(Phaser.Math.Between(0, 359), e.blinker.speed, shape.body.velocity);
+    } else if (kind === 'orbiter') {
+      shape.body.setCircle(10).setCollideWorldBounds(false);
+      shape.angle0 = Math.random() * Math.PI * 2;
     }
-    for (let i = 0; i < e.blinker.count; i++) {
-      const p = this.enemySpawnPoint();
-      const blinker = add('blinker', this.add.star(p.x, p.y, 6, 8, 14, e.blinker.color));
-      blinker.body.setBounce(1, 1);
-      this.physics.velocityFromAngle(Phaser.Math.Between(0, 359), e.blinker.speed, blinker.body.velocity);
-      blinker.nextAt = now + e.blinker.blinkEveryMs;
-      blinker.marker = this.add.circle(0, 0, 16).setStrokeStyle(2, e.blinker.color).setVisible(false);
-    }
-    for (let i = 0; i < e.orbiter.count; i++) {
-      const orbiter = add('orbiter', this.add.circle(this.coin.x, this.coin.y, 10, e.orbiter.color));
-      orbiter.body.setCircle(10).setCollideWorldBounds(false);
-      orbiter.angle0 = (i / e.orbiter.count) * Math.PI * 2;
+  }
+
+  updateVisits(time) {
+    const v = COIN_DASH.enemies.visits;
+    const visitors = this.drones.getChildren().filter(enemy => enemy.visitor);
+    visitors.forEach(enemy => {
+      if (time >= enemy.leavesAt) {
+        if (enemy.marker) enemy.marker.destroy();
+        enemy.destroy();
+      } else if (!enemy.arrived) {
+        // Fade in harmlessly so the player sees it coming.
+        const t = (time - enemy.bornAt) / v.arriveMs;
+        enemy.setAlpha(Math.min(1, t));
+        if (t >= 1) { enemy.arrived = true; enemy.harmless = false; }
+      } else if (enemy.leavesAt - time < v.leaveWarnMs) {
+        // Flicker to warn that it is about to leave.
+        enemy.setVisible(Math.floor(time / 100) % 2 === 0);
+      }
+    });
+    if (time >= this.nextVisitAt && visitors.length < v.maxAtOnce) {
+      // Avoid sending the same kind twice in a row when there is a choice.
+      const kinds = v.kinds.filter(kind => kind !== this.lastVisitor);
+      this.lastVisitor = Phaser.Utils.Array.GetRandom(kinds.length ? kinds : v.kinds);
+      this.spawnVisitor(this.lastVisitor);
+      this.nextVisitAt = time + v.everyMs;
     }
   }
 
@@ -136,6 +168,7 @@ class CoinDash extends Phaser.Scene {
     const time = (this.enemyClock += delta);
     const dt = delta / 1000;
     this.aimLines.clear();
+    this.updateVisits(time);
     this.drones.getChildren().forEach(enemy => {
       const body = enemy.body;
       if (enemy.kind === 'chaser') {
@@ -147,7 +180,7 @@ class CoinDash extends Phaser.Scene {
         enemy.setRotation(Math.atan2(body.velocity.y, body.velocity.x) + Math.PI / 2);
       } else if (enemy.kind === 'dasher') {
         this.updateDasher(enemy, time, e.dasher);
-      } else if (enemy.kind === 'blinker') {
+      } else if (enemy.kind === 'blinker' && enemy.arrived) {
         this.updateBlinker(enemy, time, e.blinker);
       } else if (enemy.kind === 'orbiter') {
         const angle = enemy.angle0 + (time / 1000) * e.orbiter.angularSpeed;
