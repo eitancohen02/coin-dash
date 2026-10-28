@@ -33,6 +33,11 @@ window.COIN_DASH = {
   },
   colors: { background: 0x101c31, player: 0x71e8ce, coin: 0xffd166, drone: 0xff657a }
 };
+// Guns: pick up a gun to get a few bullets, then hold the fire key to shoot in the direction you last moved.
+// Every enemy takes `enemyHealth` hits. Only one gun pickup is on the field at a time.
+window.COIN_DASH.guns = { enabled: true, fireKey: 'SPACE', cooldownMs: 220, bulletSpeed: 520,
+  bulletRadius: 4, damage: 1, enemyHealth: 2, hitFlashMs: 80, color: 0xf8f8ff, startAmmo: 0,
+  pickup: { ammo: 6, maxAmmo: 12, firstAfterMs: 3000, respawnMs: 8000, color: 0x9be15d } };
 // Lo-fi background music (music-lofi.js).
 window.COIN_DASH.lofiMusic = { volume: 0.45, bpm: 78, swing: 0.62, muted: false };
 // Cozy pastel graphics (graphics-cozy.js). Set enabled: false to get the plain shapes back.

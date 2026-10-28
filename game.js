@@ -29,6 +29,7 @@ class CoinDash extends Phaser.Scene {
     }
     this.aimLines = this.add.graphics();
     this.spawnEnemies();
+    this.setupGuns();
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
       this.score++;
@@ -57,6 +58,84 @@ class CoinDash extends Phaser.Scene {
     this.input.keyboard.on('keydown', () => window.LofiMusic.resume());
     this.input.keyboard.on('keydown-M', () => window.LofiMusic.toggleMute());
     window.GraphicsCozy?.create(this);
+  }
+
+  setupGuns() {
+    const g = COIN_DASH.guns;
+    this.bullets = this.physics.add.group();
+    this.facing = new Phaser.Math.Vector2(1, 0);
+    this.nextShotAt = 0;
+    if (!g?.enabled) return;
+    this.fireKey = this.input.keyboard.addKey(g.fireKey);
+    this.ammo = g.startAmmo;
+    this.ammoHud = this.add.text(COIN_DASH.width - 18, 12, '', { font: '18px monospace', color: '#ffffff' })
+      .setOrigin(1, 0);
+    // The gun pickup: a small barrel shape that waits off-field until it is due.
+    this.gunPickup = this.add.rectangle(0, 0, 22, 10, g.pickup.color).setStrokeStyle(2, 0xffffff)
+      .setVisible(false);
+    this.physics.add.existing(this.gunPickup);
+    this.gunPickup.body.enable = false;
+    this.nextPickupAt = g.pickup.firstAfterMs;
+    this.physics.add.overlap(this.player, this.gunPickup, () => this.collectGun());
+    // Enemies that are fading in or teleporting are harmless, and bullets pass through them too.
+    this.physics.add.overlap(this.bullets, this.drones,
+      (bullet, enemy) => this.hitEnemy(bullet, enemy),
+      (bullet, enemy) => !enemy.harmless);
+  }
+
+  updateGuns() {
+    const g = COIN_DASH.guns;
+    if (!g?.enabled) return;
+    if (!this.gunPickup.visible && this.enemyClock >= this.nextPickupAt) {
+      const p = this.enemySpawnPoint();
+      this.gunPickup.setPosition(p.x, p.y).setVisible(true);
+      this.gunPickup.body.enable = true;
+      this.gunPickup.body.reset(p.x, p.y);
+    }
+    if (this.gunPickup.visible) this.gunPickup.setScale(1 + 0.12 * Math.sin(this.enemyClock / 120));
+    this.ammoHud.setText(`Ammo: ${this.ammo}`);
+    if (this.fireKey.isDown && this.ammo > 0 && this.enemyClock >= this.nextShotAt) {
+      this.nextShotAt = this.enemyClock + g.cooldownMs;
+      this.ammo--;
+      const bullet = this.add.circle(this.player.x, this.player.y, g.bulletRadius, g.color);
+      this.bullets.add(bullet);
+      bullet.body.setCircle(g.bulletRadius);
+      bullet.body.setVelocity(this.facing.x * g.bulletSpeed, this.facing.y * g.bulletSpeed);
+      window.SfxRetro?.shoot?.();
+    }
+    const bounds = this.physics.world.bounds;
+    this.bullets.getChildren().slice().forEach(bullet => {
+      if (!bounds.contains(bullet.x, bullet.y)) bullet.destroy();
+    });
+  }
+
+  collectGun() {
+    const p = COIN_DASH.guns.pickup;
+    if (this.finished || !this.gunPickup.visible) return;
+    this.ammo = Math.min(p.maxAmmo, this.ammo + p.ammo);
+    this.gunPickup.setVisible(false);
+    this.gunPickup.body.enable = false;
+    this.nextPickupAt = this.enemyClock + p.respawnMs;
+    window.SfxRetro?.pickup?.();
+  }
+
+  hitEnemy(bullet, enemy) {
+    const g = COIN_DASH.guns;
+    // One bullet can overlap two enemies in the same step; it only counts once.
+    if (!bullet.active || !enemy.active) return;
+    bullet.destroy();
+    enemy.hp = (enemy.hp ?? g.enemyHealth) - g.damage;
+    if (enemy.hp <= 0) {
+      window.SfxRetro?.kill?.();
+      if (enemy.marker) enemy.marker.destroy();
+      enemy.destroy();
+      return;
+    }
+    window.SfxRetro?.hit?.();
+    // Flash white briefly so the hit reads clearly.
+    if (enemy.baseColor === undefined) enemy.baseColor = enemy.fillColor;
+    enemy.setFillStyle(0xffffff);
+    this.time.delayedCall(g.hitFlashMs, () => { if (enemy.active) enemy.setFillStyle(enemy.baseColor); });
   }
 
   togglePause() {
@@ -277,7 +356,9 @@ class CoinDash extends Phaser.Scene {
       - Number(this.cursors.up.isDown || this.keys.W.isDown);
     const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(COIN_DASH.playerSpeed);
     this.player.body.setVelocity(direction.x, direction.y);
+    if (dx || dy) this.facing.set(dx, dy).normalize();
     this.updateEnemies(delta);
+    this.updateGuns();
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
     this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
     if (seconds !== this.lastSecond && seconds > 0 && seconds <= (COIN_DASH.sfxTickSeconds ?? 0)) window.SfxRetro?.tick(seconds);

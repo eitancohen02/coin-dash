@@ -105,6 +105,24 @@
       tone('square', 220, 880, 0, 0.18, 0.4);
       tone('square', 880, 880, 0.2, 0.08, 0.35);
     },
+    // Gun pickup: a quick rising triangle "cha-chick".
+    pickup() {
+      tone('triangle', 523, 523, 0, 0.05, 0.5);
+      tone('square', 784, 1046, 0.06, 0.1, 0.35);
+    },
+    // Gun shot: a very short falling square "pew".
+    shoot() {
+      tone('square', 1400, 500, 0, 0.07, 0.25);
+    },
+    // Bullet hits an enemy that survives: a dull low blip.
+    hit() {
+      tone('square', 330, 220, 0, 0.06, 0.35);
+    },
+    // Enemy destroyed: a small noise pop with a falling zap.
+    kill() {
+      noise(0, 0.2, 0.6, 12);
+      tone('square', 660, 110, 0, 0.22, 0.4);
+    },
     // Countdown tick for the final seconds: a tiny triangle blip, slightly higher on the last one.
     tick(secondsLeft) {
       const f = secondsLeft <= 1 ? 1760 : 1175;
