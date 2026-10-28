@@ -8,7 +8,7 @@ class CoinDash extends Phaser.Scene {
     this.finished = false;
     this.deadline = this.time.now + c.roundSeconds * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
-    this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
+    this.background = this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
       c.colors.background, 1, 0x24334b, 0.45);
     this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: '#ffffff' });
     this.player = this.add.rectangle(c.width / 2, c.height / 2, 24, 24, c.colors.player);
@@ -56,6 +56,7 @@ class CoinDash extends Phaser.Scene {
     window.LofiMusic.start(this.sound.context);
     this.input.keyboard.on('keydown', () => window.LofiMusic.resume());
     this.input.keyboard.on('keydown-M', () => window.LofiMusic.toggleMute());
+    window.GraphicsCozy?.create(this);
   }
 
   togglePause() {
@@ -228,11 +229,12 @@ class CoinDash extends Phaser.Scene {
     this.physics.pause();
     window.LofiMusic.duck();
     const c = COIN_DASH;
-    this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
-    this.add.text(c.width / 2, c.height / 2,
+    this.finishPanel = this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
+    this.finishText = this.add.text(c.width / 2, c.height / 2,
       `${reason}\n${this.score} coins collected\nPress R to try again`,
       { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
+    window.GraphicsCozy?.finish(this, reason);
   }
 }
 window.coinDashGame = new Phaser.Game({
