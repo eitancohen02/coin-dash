@@ -178,6 +178,28 @@ class CoinDash extends Phaser.Scene {
     // Enemy timers run on their own clock, which stops while the game is paused.
     this.enemyClock = 0;
     this.nextVisitAt = COIN_DASH.enemies.visits.firstAfterMs;
+    this.extraDrones = 0;
+  }
+
+  // A visit setting eased from its starting value to its value at the end of the round.
+  rampVisit(key) {
+    const progress = Math.min(1, this.enemyClock / (COIN_DASH.roundSeconds * 1000));
+    return Phaser.Math.Linear(COIN_DASH.enemies.visits[key], COIN_DASH.difficulty.end[key], progress);
+  }
+
+  // Later in the round more drones join; they fade in like visitors but never leave.
+  spawnExtraDrone() {
+    const c = COIN_DASH;
+    const p = this.enemySpawnPoint();
+    const drone = this.add.rectangle(p.x, p.y, 26, 26, c.colors.drone);
+    this.drones.add(drone);
+    drone.body.setCollideWorldBounds(true).setBounce(1, 1);
+    this.physics.velocityFromAngle(Phaser.Math.Between(0, 359), c.droneSpeed, drone.body.velocity);
+    drone.kind = 'drone';
+    drone.arrived = false;
+    drone.harmless = true;
+    drone.bornAt = this.enemyClock;
+    drone.leavesAt = Infinity;
   }
 
   // The special enemies only visit: one appears, stays a few seconds, then leaves.
@@ -205,7 +227,7 @@ class CoinDash extends Phaser.Scene {
     shape.arrived = false;
     shape.harmless = true;
     shape.bornAt = now;
-    shape.leavesAt = now + e.visits.stayMs;
+    shape.leavesAt = now + this.rampVisit('stayMs');
     shape.body.setCollideWorldBounds(true);
     if (kind === 'blinker') {
       shape.body.setBounce(1, 1);
@@ -218,8 +240,15 @@ class CoinDash extends Phaser.Scene {
 
   updateVisits(time) {
     const v = COIN_DASH.enemies.visits;
-    const visitors = this.drones.getChildren().filter(enemy => enemy.visitor);
-    visitors.forEach(enemy => {
+    const d = COIN_DASH.difficulty;
+    while (this.extraDrones < d.extraDronesAtSeconds.length
+      && time >= d.extraDronesAtSeconds[this.extraDrones] * 1000) {
+      this.spawnExtraDrone();
+      this.extraDrones++;
+    }
+    const arrivals = this.drones.getChildren().filter(enemy => enemy.bornAt !== undefined);
+    const visitors = arrivals.filter(enemy => enemy.visitor);
+    arrivals.forEach(enemy => {
       if (time >= enemy.leavesAt) {
         if (enemy.marker) enemy.marker.destroy();
         enemy.destroy();
@@ -233,12 +262,12 @@ class CoinDash extends Phaser.Scene {
         enemy.setVisible(Math.floor(time / 100) % 2 === 0);
       }
     });
-    if (time >= this.nextVisitAt && visitors.length < v.maxAtOnce) {
+    if (time >= this.nextVisitAt && visitors.length < Math.round(this.rampVisit('maxAtOnce'))) {
       // Avoid sending the same kind twice in a row when there is a choice.
       const kinds = v.kinds.filter(kind => kind !== this.lastVisitor);
       this.lastVisitor = Phaser.Utils.Array.GetRandom(kinds.length ? kinds : v.kinds);
       this.spawnVisitor(this.lastVisitor);
-      this.nextVisitAt = time + v.everyMs;
+      this.nextVisitAt = time + this.rampVisit('everyMs');
     }
   }
 
