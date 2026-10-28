@@ -408,6 +408,15 @@
       .setOrigin(0.5);
     hud.add([left.g, coinIcon, coins, right.g, clock, timeText, title]);
     st.hud = { coins, timeText, coinIcon, right, clock, lastCoins: -1, warn: false };
+    // Guns keep their own ammo text in the top-right corner; show it in a pill beside the timer instead.
+    if (scene.ammoHud) {
+      scene.ammoHud.setVisible(false);
+      const ammo = pill(scene, p);
+      ammo.g.setPosition(W - 14 - 118 - 10 - 104, 5);
+      ammo.draw(104, light(p.cream, 0.5));
+      st.hud.ammo = scene.add.text(W - 14 - 118 - 10 - 52, 19, '', textStyle(p, 17)).setOrigin(0.5);
+      hud.add([ammo.g, st.hud.ammo]);
+    }
   }
 
   function updateHud(scene, st, p, time) {
@@ -417,6 +426,7 @@
     const h = st.hud;
     h.coins.setText(String(coins));
     h.timeText.setText(secs + 's');
+    if (h.ammo) h.ammo.setText('ammo ' + scene.ammo);
     if (coins !== h.lastCoins && h.lastCoins >= 0) {
       scene.tweens.add({ targets: h.coinIcon, scale: { from: 0.62, to: 0.42 }, duration: 260, ease: 'Back.easeOut' });
     }
@@ -633,6 +643,8 @@
         oy = Math.sin(t * 5) * 1.5;
         sy = 1 + 0.06 * Math.sin(t * 30);
       }
+      // Guns flash a hit enemy white through its plain shape's fill colour.
+      if (s.baseColor !== undefined && s.fillColor === 0xffffff) f.img.setTintFill(0xffffff); else f.img.clearTint();
       f.c.setPosition(s.x + ox, s.y + oy).setRotation(rot).setScale(sx, sy).setAlpha(s.alpha).setVisible(s.cozyShown);
       f.shadow.setPosition(s.x, s.y + f.spec.shadowY).setAlpha(s.alpha).setVisible(s.cozyShown)
         .setScale(f.spec.shadowW * (1 - oy * 0.03) / R, 1 / R);
