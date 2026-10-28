@@ -27,5 +27,8 @@ window.COIN_DASH = {
   },
   colors: { background: 0x101c31, player: 0x71e8ce, coin: 0xffd166, drone: 0xff657a }
 };
+// Guns: hold the fire key to shoot in the direction you last moved. Every enemy takes `enemyHealth` hits.
+window.COIN_DASH.guns = { enabled: true, fireKey: 'SPACE', cooldownMs: 220, bulletSpeed: 520,
+  bulletRadius: 4, damage: 1, enemyHealth: 2, hitFlashMs: 80, color: 0xf8f8ff };
 // Lo-fi background music (music-lofi.js).
 window.COIN_DASH.lofiMusic = { volume: 0.45, bpm: 78, swing: 0.62, muted: false };
